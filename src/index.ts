@@ -1,4 +1,28 @@
-//import Graph from "./entities/graph";
+import GraphDB from "./entities/graph";
+(async () => {
+    const db = new GraphDB();
+
+    const matteo = await db.createNode("Person", {
+        name: "Matteo",
+        surname: "Mosca"
+    });
+    
+    const marzia = await db.createNode("Person", {
+        name: "Marzia",
+        surname: "Sinigaglia"
+    })
+/* db.createConnection("love", matteo, {married: false}, marzia); */
+
+})()
+
+
+
+
+
+
+
+
+
 //const graph = new Graph(null);
 /* const graph = new Graph(null);
 const node1 = graph.createNode("Person", {name: 'name1', surname: 'surname1'});
@@ -13,8 +37,13 @@ graph.createIndexByDataSubset("name") */
 /*const node = graph.getNodeByIndexSubset("name", "name1");
 
 console.log("node : ",node);*/
-import FileManager from "./entities/file-manager";
+/* import FileManager, {Action} from "./entities/file-manager";
 const path = "/Users/matteomosca/Documents/lavoro_personale/ts-graph/store/trydb.json";
 
 const fileManager = new FileManager(path);
-fileManager.writeRecord("dsadasdasdasd");
+
+fileManager.on(Action.AddedRecord, async (data) => {
+    console.log("record added: ",data);
+})
+
+fileManager.writeRecord("dsadasdasdasd"); */

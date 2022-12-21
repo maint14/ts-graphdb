@@ -1,149 +1,120 @@
-import { writeFileSync, readFileSync, appendFileSync, unlinkSync, existsSync, write, read, readFile } from 'fs';
-
+import { GraphNode, Everything, GraphId, Connection, Index, IndexType } from '../@types/index';
 import config from "../config"
+import DBFileManager, { DBFileManagerAction } from './file-manager';
 const { STORE_PATH } = config;
 
 const logger = console;
 
-const SIMPLE_DB_FILE = "simpledatabase.json";
-const INDEXED_BY_ID_FILE = "indexedbyidb.json";
-const INDEX_SUBSET_FILE = "index_subsets.json";
-const INDEXED_PREFIX_FILE = "indexedby";
+class GraphDB {
+  private store: string;
+  private nodes: Everything = {}; // as Object of each key = GraphId of Node
+  private primaryFileManager: DBFileManager<GraphNode>
+  private nodeIndexes: Everything = {};
+  //private connectionIndexes: Everything = {};
 
-type GraphId = number;
+  constructor(store: string = STORE_PATH) {
+    this.store = store;
+    this.primaryFileManager = new DBFileManager(this.store + "indexedDb.json");
 
-interface Everything {
-  [id: string]: any;
-}
-
-interface GraphNode {
-  id: GraphId;
-  type: string;
-  data: Everything;
-  connections: Connection[],
-}
-
-interface Connection {
-  id: GraphId;
-  type: string;
-  data: Everything;
-  connections: GraphId[]
-}
-
-//TODO: use connection and graphNode with methods
-//TODO: updateBasicFiles refresh all files and not only required files. with create/read stream we can manage better
-
-class Graph {
-  private nodes: GraphNode[];
-  private indexedGraphNodes: Everything = {};
-  private store: string = STORE_PATH;
-  private indexSubset: string[];
-
-  constructor(store: string | null) {
-    if (store !== null)
-      this.store = store;
-
-    if (!existsSync(this.store + SIMPLE_DB_FILE))
-      this.writeFile(this.store + SIMPLE_DB_FILE, [])
-    this.nodes = JSON.parse(readFileSync(this.store + SIMPLE_DB_FILE, "utf-8"))
-
-    if(!existsSync(this.store + INDEX_SUBSET_FILE))
-      this.writeFile(this.store + INDEX_SUBSET_FILE, [])
-    this.indexSubset = JSON.parse(readFileSync(this.store+INDEX_SUBSET_FILE, "utf-8"));
-
-    if (existsSync(this.store + INDEXED_BY_ID_FILE))
-      this.indexedGraphNodes = JSON.parse(readFileSync(this.store + INDEXED_BY_ID_FILE, "utf-8"))    
+    this.primaryFileManager.on(DBFileManagerAction.AddedRecord, (data) => this.refreshMemoryNodes(data))
   }
 
-  private createUniqueId(): number {
+  private refreshMemoryNodes(nodes: GraphNode): void {
+    console.log("refreshMemoryNodes!", nodes);
+    this.nodes = nodes;
+  }
+
+  private refreshIndexedNodes(field: string, nodes: Everything) {
+    this.nodeIndexes[field].data = nodes;
+  }
+
+  private createNodeIndex(field: string) {
+    const nodes = Object.entries(this.nodes).reduce((acc, [key, current]) => {
+      if (!!current.data[field])
+        return { ...acc, [current.data[field]]: current }
+      else {
+        logger.log(`No all elements have ${field} in data, element that has not ${field} will not indexed`)
+        return { ...acc };
+      }
+    }, {})
+
+    console.log("nodes indexed for field: ", field);
+
+    const fileManager = new DBFileManager(this.store + "indexedBy" + field + "-nodes.json");
+
+    const indexedNodes: Index = {
+      name: field,
+      fileManager,
+      data: null
+    } as Index
+
+    fileManager.replaceDB(JSON.stringify(nodes));
+    fileManager.on(DBFileManagerAction.AddedRecord, async (updatedIndexedNodes) => this.refreshIndexedNodes(field, updatedIndexedNodes))
+
+    this.nodeIndexes[field] = indexedNodes;
+  }
+
+  private createConnectionIndex(field: string) {
+    return "createConnectionIndex not implemented yet"
+  }
+
+  public static createUniqueId(): number {
     return new Date().getTime()
   }
 
-  private writeFile(name: string, data: Everything): void {
-    if (existsSync(name))
-      unlinkSync(name)
-
-    writeFileSync(name, JSON.stringify(data))
+  public getNodeById(id: GraphId) {
+    return this.nodes[id.toString()];
   }
 
-  private updateBasicFiles(): void {
-    this.writeFile(this.store + SIMPLE_DB_FILE, this.nodes);
-    this.writeFile(this.store + INDEXED_BY_ID_FILE, this.indexedGraphNodes);
-    this.writeFile(this.store + INDEX_SUBSET_FILE, this.indexSubset);
-  }
-
-  public createNode(type: string, data: Everything): GraphNode {
+  public async createNode(type: string, data: Everything): Promise<GraphNode> {
+    const id = GraphDB.createUniqueId();
     const node = {
-      id: this.createUniqueId(),
+      id,
       type,
       data,
       connections: []
-    } as GraphNode;
-    this.nodes.push(node)
-    this.createGraphIdIndex();
-    this.updateBasicFiles();
+    }
+
+    await this.primaryFileManager.addRecord(node)
     return node;
   }
 
-  public getNodeById(id: GraphId) {
-    return this.indexedGraphNodes[id.toString()];
-  }
+  //TODO test it
 
-  public createConnection(type: string, primaryNode: GraphNode, data: Everything, ...connectedNodes: GraphNode[]): Connection {
+  public async createConnection(type: string, primaryNode: GraphNode, data: Everything, ...connectedNodes: GraphNode[]): Promise<Connection> {
     const uniqueGraphIds = connectedNodes.map(v => v.id)
+    const connectionId = GraphDB.createUniqueId()
 
     const connection = {
-      id: this.createUniqueId(),
+      id: connectionId,
       type,
       data,
       connections: uniqueGraphIds
     } as Connection
 
-    const nodeIndex = this.nodes.findIndex(elem => elem.id === primaryNode.id);
-    const node = { ...this.indexedGraphNodes[primaryNode.id] } as GraphNode;
+    const node = this.getNodeById(primaryNode.id);
     node.connections.push(connection);
 
-    this.nodes[nodeIndex] = node;
-    this.indexedGraphNodes[primaryNode.id] = node;
 
-    this.createGraphIdIndex();
-    this.updateBasicFiles();
+    await Promise.all(
+      connectedNodes
+        .map(v => v.id)
+        .map(async nodeId =>
+          await this.primaryFileManager.updateRecord(nodeId, { ...node, connections: [...node.connections, primaryNode.id] })
+        )
+    )
 
-    return connection;
+    await this.primaryFileManager.updateRecord(node.id, node);
+
+    return Promise.resolve(connection);
   }
 
-  private createGraphIdIndex(): void {
-    const indexedNodes = this.nodes.reduce((acc, current) => {
-      return { ...acc, [current.id]: current }
-    }, {});
-    this.indexedGraphNodes = indexedNodes;
-  }
-
-  public createIndexByDataSubset(subset: string) {
-    const indexedNodes = this.nodes.reduce((acc, current) => {
-      if (!!current.data[subset]) {
-        return { ...acc, [current.data[subset]]: current }
-      } else {
-        logger.log(`No all elements have ${subset} in data, element that has not ${subset} will not indexed`)
-        return { ...acc };
-      }
-    }, {})
-    this.indexSubset.push(subset);
-
-    this.writeFile(this.store + INDEXED_PREFIX_FILE + subset + ".json", indexedNodes);
-    this.updateBasicFiles();
-  }
-
-  public getAllIndexSubsets() : string[] {
-    return this.indexSubset;
-  }
-
-  public getNodeByIndexSubset(subset: string, key: string) {
-    if(this.indexSubset.indexOf(subset) === -1) 
-      throw `Subset list missing ${subset}. Use new Grap(null).getAllIndexSubsets() to know avaiable indexes or use new Grap(null).getAllIndexSubsets(string) to add one`
-    const set = JSON.parse(readFileSync(this.store+INDEXED_PREFIX_FILE+subset+".json", "utf-8"))
-    return set[key];
+  public createIndex(type: IndexType, field: string) {
+    if (type === IndexType.connection)
+      this.createConnectionIndex(field);
+    else
+      this.createNodeIndex(field);
   }
 }
 
-export default Graph
+export default GraphDB
