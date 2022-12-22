@@ -9,7 +9,7 @@ type ActionCallback<V> = (data: V) => Promise<void> | void;
 
 
 //TODO refactor promise<void> with promise<result> and create interface for result
-export default class DBFileManager<T extends { id: number }> {
+export default class DBFileManager<T extends { id?: number }> {
   private wStream: WriteStream;
   private path: string;
   private addedRecordCallbacks: ActionCallback<T>[] = [];
@@ -65,7 +65,7 @@ export default class DBFileManager<T extends { id: number }> {
 
   public async addRecord(record: T): Promise<void> {
     const db = this.getFileContent();
-    db[record.id.toString()] = record;
+    db[record.id!.toString()] = record;
     return await this.writeFile(JSON.stringify(db));
   }
 

@@ -39,13 +39,13 @@ class GraphDB {
 
     console.log("nodes indexed for field: ", field);
 
-    const fileManager = new DBFileManager(this.store + "indexedBy" + field + "-nodes.json");
+    const fileManager = new DBFileManager<GraphNode<Everything>>(this.store + "indexedBy" + field + "-nodes.json");
 
     const indexedNodes: Index = {
       name: field,
       fileManager,
       data: null
-    } as Index
+    }
 
     fileManager.replaceDB(JSON.stringify(nodes));
     fileManager.on(DBFileManagerAction.AddedRecord, async (updatedIndexedNodes) => this.refreshIndexedNodes(field, updatedIndexedNodes))
@@ -65,7 +65,7 @@ class GraphDB {
     return this.nodes[id.toString()];
   }
 
-  public async createNode<T>(type: string, data: T): Promise<GraphNode<T>> {
+  public async createNode<T extends Everything>(type: string, data: T): Promise<GraphNode<T>> {
     const id = GraphDB.createUniqueId();
     const node = {
       id,
@@ -78,7 +78,7 @@ class GraphDB {
     return node;
   }
 
-  public async createConnection<T>(type: string, primaryNode: GraphNode<Everything>, data: T, ...connectedNodes: GraphNode<Everything>[]): Promise<Connection<T>> {
+  public async createConnection<T extends Everything>(type: string, primaryNode: GraphNode<Everything>, data: T, ...connectedNodes: GraphNode<Everything>[]): Promise<Connection<T>> {
     const uniqueNodeIds = connectedNodes.map(v => v.id)
     const connectionId = GraphDB.createUniqueId()
 

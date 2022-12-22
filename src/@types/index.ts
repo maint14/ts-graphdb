@@ -23,7 +23,7 @@ export type Connection <T> = {
 export type Index = {
     name: string,
     fileManager: DBFileManager<GraphNode<Everything>>,
-    data?: Everything
+    data?: Everything | null
 }
 
 export enum IndexType {
