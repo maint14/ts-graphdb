@@ -1,11 +1,13 @@
-import { createWriteStream, existsSync, readFileSync, unlinkSync, WriteStream } from "fs";
+import { createWriteStream, existsSync, readFileSync, unlinkSync, writeFile, writeFileSync, WriteStream } from "fs";
 import { Everything, GraphId } from "../@types";
 
 export enum DBFileManagerAction {
   "AddedRecord"
 }
 
-type ActionCallback<V> = (data: V) => Promise<void> | void;
+type ActionCallback<V> = (data: V) => Promise<void>;
+
+//TODO fix concurrency for read/write file async/sync
 
 export default class DBFileManager<T extends { id?: number | string }> {
   private wStream: WriteStream;
@@ -19,17 +21,17 @@ export default class DBFileManager<T extends { id?: number | string }> {
 
   private setUpWS() : void {
     this.wStream = createWriteStream(this.path);
-    this.wStream.on("finish", () => this.newStreamData())
+    this.wStream.on("finish", async () => await this.newStreamData())
   }
 
-  private elaborateCallback(arrayOfCallbacks: ActionCallback<T>[], data: any): void {
-    arrayOfCallbacks.forEach(callback => callback(data));
+  private async elaborateCallback(arrayOfCallbacks: ActionCallback<T>[], data: any): Promise<void> {
+    await Promise.all(arrayOfCallbacks.map(async callback => await callback(data)));
   }
 
-  private newStreamData() {
+  private async newStreamData() : Promise<void>{
     const _data = readFileSync(this.path, "utf-8");
 
-    this.elaborateCallback(this.addedRecordCallbacks, JSON.parse(_data));
+    await this.elaborateCallback(this.addedRecordCallbacks, JSON.parse(_data));
   }
 
   private getFileContent(): Everything {
@@ -48,12 +50,16 @@ export default class DBFileManager<T extends { id?: number | string }> {
   //horrible promise
   private writeFile(content: string): Promise<void> {
     return new Promise(resolve => {
+      /* this.removeDBFile()
+      writeFileSync(this.path, content)
+      resolve() */
       this.removeDBFile();
       this.setUpWS()
-      this.wStream.write(content, () => {
-        this.wStream.end();
-        resolve();
-      });
+      this.wStream.write(content, (err) => {
+        if(err)
+          throw err;
+        this.wStream.end(() => resolve());
+      }); 
     })
   }
 

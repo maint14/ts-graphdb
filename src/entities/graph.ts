@@ -26,11 +26,12 @@ class GraphDB {
     this.nodes = nodes;
     this.primaryKey = primaryKey;
     this.primaryFileManager = primaryFileManager;
-    this.primaryFileManager.on(DBFileManagerAction.AddedRecord, (data) => this.refreshMemoryNodes(data))
+    this.primaryFileManager.on(DBFileManagerAction.AddedRecord, async (data) => await this.refreshMemoryNodes(data))
   }
 
-  private refreshMemoryNodes(nodes: GraphNode<Everything>): void {
+  private async refreshMemoryNodes(nodes: GraphNode<Everything>): Promise<void> {
     this.nodes = nodes;
+    return Promise.resolve()
   }
 
   private async createNodeIndex(field: string): Promise<GraphDB> {
@@ -67,7 +68,8 @@ class GraphDB {
     return this.nodes[key.toString()];
   }
 
-  public async createNode<T extends Everything>(type: string, data: T): Promise<GraphNode<Everything>> {
+  public async createNode<T extends Everything>(type: string, data: T): Promise<void> {
+    console.log("createNode", type);
     const id : number | string = this.primaryKey === 'id' ? GraphDB.createUniqueId() : data[this.primaryKey];
     const node = {
       id,
@@ -77,7 +79,8 @@ class GraphDB {
     }
 
     await this.primaryFileManager.addRecord(node)
-    return node;
+    console.log("finito di creare node");
+    //return Promise.resolve(node);
   }
 
   public async createConnection<T extends Everything>(type: string, primaryNode: GraphNode<Everything>, data: T, ...connectedNodes: GraphNode<Everything>[]): Promise<Connection<T>> {

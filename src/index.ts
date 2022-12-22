@@ -2,11 +2,14 @@ import GraphDB from "./entities/graph";
 import config from "./config";
 import { readdirSync, unlinkSync } from "fs";
 import createPeopleArray, {SOME_CONNECTION_PAIR_TYPE_VALUES} from "../resources/create_people";
+import { Everything, GraphNode } from "./@types";
 
 const _clearFiles = async () => {
     const filesInDir = readdirSync(config.STORE_PATH);
     await Promise.all(filesInDir.map(async item => await unlinkSync(config.STORE_PATH+item)))
 }
+
+
 
 (async () => {
     if(process.argv[2] === "-clear")
@@ -14,6 +17,15 @@ const _clearFiles = async () => {
 
     const db = new GraphDB();
 
+    const people = createPeopleArray(20);
+
+    for(const person of people) {
+        await db.createNode("Person", person);
+    }
+    //TODO implements with connections
+    const newDb = await db.createIndex("surname")
+
+/* 
     const matteo = await db.createNode("Person", {
         name: "Matteo",
         surname: "Mosca"
@@ -35,7 +47,7 @@ const _clearFiles = async () => {
     
     const node = db2.getNodeByPrimaryKey("Matteo");
 
-    console.log("node: ",node);
+    console.log("node: ",node); */
 
 
 })()
