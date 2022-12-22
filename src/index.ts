@@ -1,7 +1,7 @@
 import GraphDB from "./entities/graph";
 import config from "./config";
 import { readdirSync, unlinkSync } from "fs";
-import createPeopleArray, {SOME_CONNECTION_PAIR_TYPE_VALUES} from "../resources/create_people";
+import createPeopleArray, {isEven, randInt, SOME_CONNECTION_PAIR_TYPE_VALUES} from "../resources/create_people";
 import { Everything, GraphNode } from "./@types";
 
 const _clearFiles = async () => {
@@ -12,18 +12,29 @@ const _clearFiles = async () => {
 
 
 (async () => {
+    const random = randInt(1,100);
     if(process.argv[2] === "-clear")
         await _clearFiles();
 
     const db = new GraphDB();
 
     const people = createPeopleArray(20);
-
+    let old_person : any = false
     for(const person of people) {
-        await db.createNode("Person", person);
+        const newNode = await db.createNode("Person", person);
+        if(old_person)
+            await db.createConnection(
+                isEven(random) ? SOME_CONNECTION_PAIR_TYPE_VALUES[0].type : SOME_CONNECTION_PAIR_TYPE_VALUES[1].type,
+                newNode,
+                isEven(random) ? SOME_CONNECTION_PAIR_TYPE_VALUES[0].value : SOME_CONNECTION_PAIR_TYPE_VALUES[1].value,
+                old_person
+            )
+        old_person = newNode
     }
-    //TODO implements with connections
+    /* //TODO implements with connections
     const newDb = await db.createIndex("surname")
+    newDb.createNode("Person", {name: "Riccardo", surname: "Corsi"}); */
+
 
 /* 
     const matteo = await db.createNode("Person", {

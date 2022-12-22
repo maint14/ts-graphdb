@@ -13,8 +13,8 @@ type Person = {
   age: number
 }
 
-const randInt = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
-const isEven = (n: number) => n % 2 == 0;
+export const randInt = (minimum, maximum) => Math.floor(Math.random() * (maximum - minimum + 1)) + minimum;
+export const isEven = (n: number) => n % 2 == 0;
 
 const createPeopleArray: (many: number) => Person[] = (many) => {
   const array : Person[] = [];

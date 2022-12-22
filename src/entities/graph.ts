@@ -68,7 +68,7 @@ class GraphDB {
     return this.nodes[key.toString()];
   }
 
-  public async createNode<T extends Everything>(type: string, data: T): Promise<void> {
+  public async createNode<T extends Everything>(type: string, data: T): Promise<GraphNode<T>> {
     console.log("createNode", type);
     const id : number | string = this.primaryKey === 'id' ? GraphDB.createUniqueId() : data[this.primaryKey];
     const node = {
@@ -80,7 +80,7 @@ class GraphDB {
 
     await this.primaryFileManager.addRecord(node)
     console.log("finito di creare node");
-    //return Promise.resolve(node);
+    return Promise.resolve(node);
   }
 
   public async createConnection<T extends Everything>(type: string, primaryNode: GraphNode<Everything>, data: T, ...connectedNodes: GraphNode<Everything>[]): Promise<Connection<T>> {

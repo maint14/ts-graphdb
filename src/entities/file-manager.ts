@@ -7,8 +7,6 @@ export enum DBFileManagerAction {
 
 type ActionCallback<V> = (data: V) => Promise<void>;
 
-//TODO fix concurrency for read/write file async/sync
-
 export default class DBFileManager<T extends { id?: number | string }> {
   private wStream: WriteStream;
   private path: string;
