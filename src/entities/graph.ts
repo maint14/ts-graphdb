@@ -5,14 +5,13 @@ const { STORE_PATH } = config;
 
 const logger = console;
 
-//TODO: fix indexing problem : se la colonna da indicizzare non è univoca non avrai doppi risultati su stessa chiave
 //TODO: refactor promise<void> with promise<result> and create interface for result
 
 class GraphDB {
   public readonly primaryFileManager: DBFileManager<GraphNode<Everything>>
 
   private store: string;
-  private primaryKey : string;
+  private primaryKey: string;
   private nodes: Everything; // as Object of each key = GraphId of Node
   private nodeIndexes: Everything = {};
 
@@ -35,14 +34,19 @@ class GraphDB {
   }
 
   private async createNodeIndex(field: string): Promise<GraphDB> {
-    const nodes = Object.entries(this.nodes).reduce((acc, [key, current]) => {
-      if (!!current.data[field])
-        return { ...acc, [current.data[field]]: current }
-      else {
-        logger.log(`No all elements have ${field} in data, element that has not ${field} will not indexed`)
-        return { ...acc };
-      }
-    }, {})
+    const nodes = Object.entries(this.nodes).reduce(
+      (acc, [key, current]) => {
+        if (!!current.data[field]){
+          console.log("current.data[field]: ",current.data[field]);
+          console.log("acc[current.data[field]] ", acc[current.data[field]] )
+          return { ...acc, [current.data[field]]: !acc[current.data[field]] ? [current] : [...acc[current.data[field]] , current] }
+        } else {
+          logger.log(`No all elements have ${field} in data, element that has not ${field} will not indexed`)
+          return { ...acc };
+        }
+      },
+      {}
+    )
 
     console.log("nodes indexed for field: ", field);
 
@@ -55,22 +59,28 @@ class GraphDB {
     return db;
   }
 
-  //TODO implements
-  private createConnectionIndex(field: string): Promise<GraphDB> {
+  //useless? implements
+  /* private createConnectionIndex(field: string): Promise<GraphDB> {
+    const connections = Object.entries(this.nodes).reduce(
+      (acc, [key, current]) => {
+        const {connections} = current;
+      },
+      {}
+    )
     return Promise.resolve(new GraphDB(this.store));
-  }
+  } */
 
   public static createUniqueId(): number {
     return new Date().getTime()
   }
 
-  public getNodeByPrimaryKey(key: GraphId | string) {
+  public getNodeByPrimaryKey(key: GraphId | string) : GraphNode<Everything> | GraphNode<Everything>[] {
     return this.nodes[key.toString()];
   }
 
   public async createNode<T extends Everything>(type: string, data: T): Promise<GraphNode<T>> {
     console.log("createNode", type);
-    const id : number | string = this.primaryKey === 'id' ? GraphDB.createUniqueId() : data[this.primaryKey];
+    const id: number | string = this.primaryKey === 'id' ? GraphDB.createUniqueId() : data[this.primaryKey];
     const node = {
       id,
       type,
@@ -105,11 +115,11 @@ class GraphDB {
     return Promise.resolve(connection);
   }
 
-  public async createIndex(field: string, type: IndexType = IndexType.node) : Promise<GraphDB>{
-    if (type === IndexType.connection)
+  public async createIndex(field: string): Promise<GraphDB> {
+    /* if (type === IndexType.connection)
       return await this.createConnectionIndex(field);
-    else
-      return await this.createNodeIndex(field);
+    else */
+    return await this.createNodeIndex(field);
   }
 }
 
