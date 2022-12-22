@@ -25,6 +25,17 @@ const _clearFiles = async () => {
     })
 
     const connection = await db.createConnection("Engaged", matteo, {married: false}, marzia);
-    console.log("connection : ",connection);
+    const db2 = await db.createIndex("name");
+
+    db2.createNode("Cuscino", {
+        name: "giangi",
+        surname: "il morto :(",
+        age: 7
+    })
+    
+    const node = db2.getNodeByPrimaryKey("Matteo");
+
+    console.log("node: ",node);
+
 
 })()

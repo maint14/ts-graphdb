@@ -5,17 +5,27 @@ const { STORE_PATH } = config;
 
 const logger = console;
 
+//TODO: fix indexing problem : se la colonna da indicizzare non è univoca non avrai doppi risultati su stessa chiave
+//TODO: refactor promise<void> with promise<result> and create interface for result
+
 class GraphDB {
+  public readonly primaryFileManager: DBFileManager<GraphNode<Everything>>
+
   private store: string;
-  private nodes: Everything = {}; // as Object of each key = GraphId of Node
-  private primaryFileManager: DBFileManager<GraphNode<Everything>>
+  private primaryKey : string;
+  private nodes: Everything; // as Object of each key = GraphId of Node
   private nodeIndexes: Everything = {};
-  //private connectionIndexes: Everything = {};
 
-  constructor(store: string = STORE_PATH) {
+  constructor(
+    store: string = STORE_PATH,
+    nodes: Everything = {},
+    primaryKey: string = "id",
+    primaryFileManager: DBFileManager<GraphNode<Everything>> = new DBFileManager(STORE_PATH + "indexedByPrimaryKeyDb.json")
+  ) {
     this.store = store;
-    this.primaryFileManager = new DBFileManager(this.store + "indexedDb.json");
-
+    this.nodes = nodes;
+    this.primaryKey = primaryKey;
+    this.primaryFileManager = primaryFileManager;
     this.primaryFileManager.on(DBFileManagerAction.AddedRecord, (data) => this.refreshMemoryNodes(data))
   }
 
@@ -23,11 +33,7 @@ class GraphDB {
     this.nodes = nodes;
   }
 
-  private refreshIndexedNodes(field: string, nodes: Everything) {
-    this.nodeIndexes[field].data = nodes;
-  }
-
-  private createNodeIndex(field: string) {
+  private async createNodeIndex(field: string): Promise<GraphDB> {
     const nodes = Object.entries(this.nodes).reduce((acc, [key, current]) => {
       if (!!current.data[field])
         return { ...acc, [current.data[field]]: current }
@@ -39,34 +45,30 @@ class GraphDB {
 
     console.log("nodes indexed for field: ", field);
 
-    const fileManager = new DBFileManager<GraphNode<Everything>>(this.store + "indexedBy" + field + "-nodes.json");
+    const filename = "indexedBy" + field + "-nodes.json";
+    const fileManager = new DBFileManager<GraphNode<Everything>>(this.store + filename);
 
-    const indexedNodes: Index = {
-      name: field,
-      fileManager,
-      data: null
-    }
+    const db = new GraphDB(this.store, nodes, field, fileManager);
+    await fileManager.replaceDB(JSON.stringify(nodes));
 
-    fileManager.replaceDB(JSON.stringify(nodes));
-    fileManager.on(DBFileManagerAction.AddedRecord, async (updatedIndexedNodes) => this.refreshIndexedNodes(field, updatedIndexedNodes))
-
-    this.nodeIndexes[field] = indexedNodes;
+    return db;
   }
 
-  private createConnectionIndex(field: string): string {
-    return "createConnectionIndex not implemented yet"
+  //TODO implements
+  private createConnectionIndex(field: string): Promise<GraphDB> {
+    return Promise.resolve(new GraphDB(this.store));
   }
 
   public static createUniqueId(): number {
     return new Date().getTime()
   }
 
-  public getNodeById(id: GraphId) {
-    return this.nodes[id.toString()];
+  public getNodeByPrimaryKey(key: GraphId | string) {
+    return this.nodes[key.toString()];
   }
 
-  public async createNode<T extends Everything>(type: string, data: T): Promise<GraphNode<T>> {
-    const id = GraphDB.createUniqueId();
+  public async createNode<T extends Everything>(type: string, data: T): Promise<GraphNode<Everything>> {
+    const id : number | string = this.primaryKey === 'id' ? GraphDB.createUniqueId() : data[this.primaryKey];
     const node = {
       id,
       type,
@@ -93,18 +95,18 @@ class GraphDB {
     await this.primaryFileManager.updateRecord(primaryNode.id, primaryNode);
     await Promise.all(
       connectedNodes.map(
-          async (connectedNode) => await this.primaryFileManager.updateRecord(connectedNode.id, { ...connectedNode, connections: [...connectedNode.connections, connection] }) 
-        )
+        async (connectedNode) => await this.primaryFileManager.updateRecord(connectedNode.id, { ...connectedNode, connections: [...connectedNode.connections, connection] })
+      )
     )
 
     return Promise.resolve(connection);
   }
 
-  public createIndex(field: string, type: IndexType = IndexType.node) {
+  public async createIndex(field: string, type: IndexType = IndexType.node) : Promise<GraphDB>{
     if (type === IndexType.connection)
-      this.createConnectionIndex(field);
+      return await this.createConnectionIndex(field);
     else
-      this.createNodeIndex(field);
+      return await this.createNodeIndex(field);
   }
 }
 

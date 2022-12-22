@@ -7,7 +7,7 @@ export type GraphNode<T> = {
     connections: Connection<Everything>[],
 }
 
-export type GraphId = number;
+export type GraphId = number | string;
 
 export type Everything = {
     [id: string]: any;

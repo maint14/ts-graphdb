@@ -1,5 +1,5 @@
 import { createWriteStream, existsSync, readFileSync, unlinkSync, WriteStream } from "fs";
-import { Everything } from "../@types";
+import { Everything, GraphId } from "../@types";
 
 export enum DBFileManagerAction {
   "AddedRecord"
@@ -7,9 +7,7 @@ export enum DBFileManagerAction {
 
 type ActionCallback<V> = (data: V) => Promise<void> | void;
 
-
-//TODO refactor promise<void> with promise<result> and create interface for result
-export default class DBFileManager<T extends { id?: number }> {
+export default class DBFileManager<T extends { id?: number | string }> {
   private wStream: WriteStream;
   private path: string;
   private addedRecordCallbacks: ActionCallback<T>[] = [];
@@ -69,8 +67,7 @@ export default class DBFileManager<T extends { id?: number }> {
     return await this.writeFile(JSON.stringify(db));
   }
 
-  public async updateRecord(searchId: number, replaceRecord: T): Promise<void> {
-    console.log("updateRecord: ",searchId, " ", replaceRecord)
+  public async updateRecord(searchId: GraphId, replaceRecord: T): Promise<void> {
     const db = this.getFileContent();
     db[searchId.toString()] = replaceRecord;
     return await this.writeFile(JSON.stringify(db));
