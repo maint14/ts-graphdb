@@ -2,7 +2,9 @@ import { createWriteStream, existsSync, readFileSync, unlinkSync, writeFile, wri
 import { Everything, GraphId } from "../@types";
 
 export enum DBFileManagerAction {
-  "AddedRecord"
+  "RecordAdded",
+  "FileRemoved", 
+  "RecordRemoved"//TODO
 }
 
 type ActionCallback<V> = (data: V) => Promise<void>;
@@ -11,6 +13,8 @@ export default class DBFileManager<T extends { id?: number | string }> {
   private wStream: WriteStream;
   private path: string;
   private addedRecordCallbacks: ActionCallback<T>[] = [];
+  private fileRemovedCallbacks: ActionCallback<T>[] = [];
+  private recordRemovedCallbacks: ActionCallback<T>[] = [];
 
   constructor(path: string) {
     this.path = path;
@@ -40,18 +44,19 @@ export default class DBFileManager<T extends { id?: number | string }> {
     }
   }
 
-  private removeDBFile() : void {
+  private async removeDBFile() : Promise<void> {
     if (existsSync(this.path))
       unlinkSync(this.path)
+    await this.elaborateCallback(this.fileRemovedCallbacks, null)
   }
 
   //horrible promise
   private writeFile(content: string): Promise<void> {
-    return new Promise(resolve => {
+    return new Promise(async resolve => {
       /* this.removeDBFile()
       writeFileSync(this.path, content)
       resolve() */
-      this.removeDBFile();
+      await this.removeDBFile();
       this.setUpWS()
       this.wStream.write(content, (err) => {
         if(err)
@@ -77,9 +82,19 @@ export default class DBFileManager<T extends { id?: number | string }> {
     return await this.writeFile(JSON.stringify(db));
   }
 
-  public on(action: DBFileManagerAction, callback: ActionCallback<T>) {
-    if (action === DBFileManagerAction.AddedRecord)
+  public async removeRecord(searchId: GraphId) {
+    const db = this.getFileContent();
+    delete db[searchId];
+    return await this.writeFile(JSON.stringify(db));
+  }
+
+  public on(action: DBFileManagerAction, callback: ActionCallback<T>): void {
+    if (action === DBFileManagerAction.RecordAdded)
       this.addedRecordCallbacks.push(callback);
+    if( action === DBFileManagerAction.FileRemoved)
+      this.fileRemovedCallbacks.push(callback)
+    if(action === DBFileManagerAction.RecordRemoved)
+      this.recordRemovedCallbacks.push(callback);
   }
 
 }
