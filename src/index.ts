@@ -1,5 +1,15 @@
 import GraphDB from "./entities/graph";
+import config from "./config";
+import { readdirSync, unlinkSync } from "fs";
+
+const _clearFiles = async () => {
+    const filesInDir = readdirSync(config.STORE_PATH);
+    await Promise.all(filesInDir.map(async item => await unlinkSync(config.STORE_PATH+item)))
+}
+
 (async () => {
+    if(process.argv[2] === "-clear")
+        await _clearFiles();
     const db = new GraphDB();
 
     const matteo = await db.createNode("Person", {
@@ -11,6 +21,9 @@ import GraphDB from "./entities/graph";
         name: "Marzia",
         surname: "Sinigaglia"
     })
+
+    const connection = await db.createConnection("Engaged", matteo, {married: false}, marzia);
+    console.log("connection : ",connection);
 /* db.createConnection("love", matteo, {married: false}, marzia); */
 
 })()

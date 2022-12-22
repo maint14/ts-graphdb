@@ -1,10 +1,10 @@
 import DBFileManager from "../entities/file-manager";
 
-export type GraphNode = {
+export type GraphNode<T> = {
     id: GraphId;
     type: string;
-    data: Everything;
-    connections: Everything,
+    data: T;
+    connections: Connection<Everything>[],
 }
 
 export type GraphId = number;
@@ -13,16 +13,16 @@ export type Everything = {
     [id: string]: any;
 }
 
-export type Connection = {
+export type Connection <T> = {
     id: GraphId;
     type: string;
-    data: Everything;
+    data: T;
     connections: GraphId[]
 }
 
 export type Index = {
     name: string,
-    fileManager: DBFileManager<GraphNode>,
+    fileManager: DBFileManager<GraphNode<Everything>>,
     data?: Everything
 }
 

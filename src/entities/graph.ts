@@ -8,7 +8,7 @@ const logger = console;
 class GraphDB {
   private store: string;
   private nodes: Everything = {}; // as Object of each key = GraphId of Node
-  private primaryFileManager: DBFileManager<GraphNode>
+  private primaryFileManager: DBFileManager<GraphNode<Everything>>
   private nodeIndexes: Everything = {};
   //private connectionIndexes: Everything = {};
 
@@ -19,8 +19,7 @@ class GraphDB {
     this.primaryFileManager.on(DBFileManagerAction.AddedRecord, (data) => this.refreshMemoryNodes(data))
   }
 
-  private refreshMemoryNodes(nodes: GraphNode): void {
-    console.log("refreshMemoryNodes!", nodes);
+  private refreshMemoryNodes(nodes: GraphNode<Everything>): void {
     this.nodes = nodes;
   }
 
@@ -54,7 +53,7 @@ class GraphDB {
     this.nodeIndexes[field] = indexedNodes;
   }
 
-  private createConnectionIndex(field: string) {
+  private createConnectionIndex(field: string): string {
     return "createConnectionIndex not implemented yet"
   }
 
@@ -66,7 +65,7 @@ class GraphDB {
     return this.nodes[id.toString()];
   }
 
-  public async createNode(type: string, data: Everything): Promise<GraphNode> {
+  public async createNode<T>(type: string, data: T): Promise<GraphNode<T>> {
     const id = GraphDB.createUniqueId();
     const node = {
       id,
@@ -79,37 +78,29 @@ class GraphDB {
     return node;
   }
 
-  //TODO test it
-
-  public async createConnection(type: string, primaryNode: GraphNode, data: Everything, ...connectedNodes: GraphNode[]): Promise<Connection> {
-    const uniqueGraphIds = connectedNodes.map(v => v.id)
+  public async createConnection<T>(type: string, primaryNode: GraphNode<Everything>, data: T, ...connectedNodes: GraphNode<Everything>[]): Promise<Connection<T>> {
+    const uniqueNodeIds = connectedNodes.map(v => v.id)
     const connectionId = GraphDB.createUniqueId()
 
     const connection = {
       id: connectionId,
       type,
       data,
-      connections: uniqueGraphIds
-    } as Connection
+      connections: [primaryNode.id, ...uniqueNodeIds]
+    } as Connection<T>
+    primaryNode.connections.push(connection);
 
-    const node = this.getNodeById(primaryNode.id);
-    node.connections.push(connection);
-
-
+    await this.primaryFileManager.updateRecord(primaryNode.id, primaryNode);
     await Promise.all(
-      connectedNodes
-        .map(v => v.id)
-        .map(async nodeId =>
-          await this.primaryFileManager.updateRecord(nodeId, { ...node, connections: [...node.connections, primaryNode.id] })
+      connectedNodes.map(
+          async (connectedNode) => await this.primaryFileManager.updateRecord(connectedNode.id, { ...connectedNode, connections: [...connectedNode.connections, connection] }) 
         )
     )
-
-    await this.primaryFileManager.updateRecord(node.id, node);
 
     return Promise.resolve(connection);
   }
 
-  public createIndex(type: IndexType, field: string) {
+  public createIndex(field: string, type: IndexType = IndexType.node) {
     if (type === IndexType.connection)
       this.createConnectionIndex(field);
     else

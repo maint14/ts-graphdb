@@ -7,6 +7,8 @@ export enum DBFileManagerAction {
 
 type ActionCallback<V> = (data: V) => Promise<void> | void;
 
+
+//TODO refactor promise<void> with promise<result> and create interface for result
 export default class DBFileManager<T extends { id: number }> {
   private wStream: WriteStream;
   private path: string;
@@ -27,7 +29,6 @@ export default class DBFileManager<T extends { id: number }> {
   }
 
   private newStreamData() {
-    console.log("onFINISH!");
     const _data = readFileSync(this.path, "utf-8");
 
     this.elaborateCallback(this.addedRecordCallbacks, JSON.parse(_data));
@@ -69,6 +70,7 @@ export default class DBFileManager<T extends { id: number }> {
   }
 
   public async updateRecord(searchId: number, replaceRecord: T): Promise<void> {
+    console.log("updateRecord: ",searchId, " ", replaceRecord)
     const db = this.getFileContent();
     db[searchId.toString()] = replaceRecord;
     return await this.writeFile(JSON.stringify(db));
