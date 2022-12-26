@@ -28,13 +28,25 @@ const _clearFiles = async () => {
       )
     old_person = newNode
   }
-  await db.createNode("Person", { name: "Name1", surname: "SameSurname", age: 24 });
-  await db.createNode("Person", { name: "Name2", surname: "SameSurname" });
+  console.log("old_person BEFORE: ", old_person);
+  const connectionId = old_person.connections[0]._id;
+  const old_conn = old_person.connections[0];
+  const newConnection =
+    old_person.connections[0].type === SOME_CONNECTION_PAIR_TYPE_VALUES[0].type ?
+    {...old_conn, type: SOME_CONNECTION_PAIR_TYPE_VALUES[1].type, data: SOME_CONNECTION_PAIR_TYPE_VALUES[1].value } :
+    {...old_conn, type: SOME_CONNECTION_PAIR_TYPE_VALUES[0].type, data: SOME_CONNECTION_PAIR_TYPE_VALUES[0].value }
 
-  const node = db.findNode({ name: "Name1sss", surname: "SameSurname" });
+  await db.updateConnection(connectionId, newConnection);
+  console.log(await db.getNodeByPrimaryKey(old_person.id))
+
+
+  /* await db.createNode("Person", { name: "Name1", surname: "SameSurname", age: 24 });
+  await db.createNode("Person", { name: "Name2", surname: "SameSurname" }); */
+
+  //const node = db.findNode({ name: "Name1sss", surname: "SameSurname" });
 
   //console.log("node: ",node);
 
-  const newDb = await db.createIndex("surname")
+  //const newDb = await db.createIndex("surname")
 
 })()

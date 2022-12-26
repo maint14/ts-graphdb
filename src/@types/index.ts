@@ -1,5 +1,3 @@
-import DBFileManager from "../entities/file-manager";
-
 export type GraphNode<T> = {
     id: GraphId;
     type: string;
@@ -18,15 +16,4 @@ export type Connection <T> = {
     type: string;
     data: T;
     connections: GraphId[]
-}
-
-export type Index = {
-    name: string,
-    fileManager: DBFileManager<GraphNode<Everything>>,
-    data?: Everything | null
-}
-
-export enum IndexType {
-    "node",
-    "connection"
 }
