@@ -36,6 +36,11 @@ Experimental GraphDB in typescript with only nodejs/ts compiler as dev dependenc
 - [x] remove single record
 - [x] resolves indexing collision problems
 - [x] replace entire db
-- [] add multiple record
-- [] remove multiple record
-- [] update multiple record (?)
+- [ ] add multiple record
+- [ ] remove multiple record
+- [ ] update multiple record (?)
+
+## Conclusion
+At the moment there are only graph/filesystem class to manage files and db, in the near future we will implement socket connection to comunicate with the db using a sql-like language.
+
+## Work in progress on develop branch...
