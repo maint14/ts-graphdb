@@ -41,16 +41,14 @@ export default class DBFileManager<T extends { id?: number | string }> {
       await this.elaborateCallback(this.fileRemovedCallbacks, null)
   }
 
-  //horrible promise
   private async writeFile(content: string): Promise<void> {
     await this.removeDBFile(false)
     writeFileSync(this.path, content)
     await this.elaborateCallback(this.addedRecordCallbacks, JSON.parse(content))
-    return Promise.resolve()
   }
 
   public async replaceDB(db: string): Promise<void> {
-    return await this.writeFile(db);
+    await this.writeFile(db);
   }
 
   public async addRecord(record: T, collision: boolean = false): Promise<void> {
