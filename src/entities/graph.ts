@@ -11,7 +11,8 @@ const logger = console;
 
 //TODO: deleteNode, updateNode, deleteConnection, deleteDB, findConnection
 //TODO[low]: try to make all Everything as parametric type dove possibile
-//TODO set types and return values to PUBLIC METHODS
+//TODO set types and return values to ALL PUBLIC METHODS
+//TODO create a comunication method with sockets with orm based
 
 class GraphDB {
   public readonly primaryFileManager: DBFileManager<GraphNode<Everything>>
